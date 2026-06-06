@@ -159,7 +159,7 @@ class URLRequest(BaseModel):
 async def root():
     return {"message": "QR Phishing Detector API is running"}
 
-@app.post("/analyze")
+@app.post("/api/detect")
 async def analyze_url(request: URLRequest):
     url = request.url
     if not url:

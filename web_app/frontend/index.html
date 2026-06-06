@@ -184,7 +184,7 @@
         <button class="settings-btn" onclick="toggleSettings()">⚙️ Backend Settings</button>
         <div id="settings-panel">
             <label for="api-url">API Backend URL:</label>
-            <input type="text" id="api-url" placeholder="http://localhost:8000" style="margin-top: 0.5rem;">
+            <input type="text" id="api-url" placeholder="http://127.0.0.1:8000" style="margin-top: 0.5rem;">
             <p style="margin-top: 0.5rem; font-size: 0.75rem; color: #64748b;">
                 Tip: In Codespaces, use the forwarded URL for port 8000.
             </p>
@@ -207,7 +207,7 @@
                 const backendUrl = currentUrl.replace(/-\d+\.app\.github\.dev/, '-8000.app.github.dev').replace(/\/$/, '');
                 apiUrlInput.value = backendUrl;
             } else {
-                apiUrlInput.value = 'http://localhost:8000';
+                apiUrlInput.value = 'http://127.0.0.1:8000';
             }
         }
 
@@ -240,17 +240,29 @@
             const apiBase = apiUrlInput.value.replace(/\/$/, '');
             
             try {
-                const response = await fetch(`${apiBase}/analyze`, {
+                const response = await fetch(`${apiBase}/api/detect`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: url })
                 });
                 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
                 displayResult(data);
             } catch (error) {
-                console.error('Error:', error);
-                alert(`Could not connect to the backend at ${apiBase}.\n\n1. Make sure the backend is running.\n2. In Codespaces, go to the "Ports" tab and make port 8000 "Public".`);
+                console.error('Full Error:', error);
+                
+                // Determine if it's a network error (like CORS) or an API error
+                let errorMsg = error.message;
+                if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                    errorMsg = "Network Error: Failed to fetch. This usually means CORS blocked the request, the browser tried IPv6 instead of IPv4, or the backend isn't running.";
+                }
+                
+                alert(`Error connecting to backend:\n\n${errorMsg}\n\nAttempted URL: ${apiBase}/api/detect\n\nPlease check the Backend Settings.`);
             } finally {
                 loader.style.display = 'none';
             }
