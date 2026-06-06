@@ -150,6 +150,10 @@
         </div>
         
         <button id="analyze-btn">Analyze URL</button>
+
+        <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b; text-align: center;">
+            API URL: <input type="text" id="api-url" value="http://localhost:8000" style="width: auto; padding: 2px; font-size: 0.7rem; border: none; background: transparent; color: #4f46e5; cursor: pointer;" title="Click to edit if using Codespaces">
+        </div>
         
         <div class="loader" id="loader">Analyzing...</div>
         
@@ -186,8 +190,10 @@
             loader.style.display = 'block';
             resultDiv.style.display = 'none';
             
+            const apiUrl = document.getElementById('api-url').value.trim();
+            
             try {
-                const response = await fetch('http://localhost:8000/analyze', {
+                const response = await fetch(`${apiUrl}/analyze`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: url })
