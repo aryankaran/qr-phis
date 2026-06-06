@@ -214,6 +214,7 @@
             
             const details = document.getElementById('result-details');
             details.innerHTML = `
+                <p><strong>Risk Score:</strong> ${data.risk_score} / 5</p>
                 <p><strong>ML Probability:</strong> ${(data.probability * 100).toFixed(2)}%</p>
                 <p><strong>ML Verdict:</strong> ${data.ml_result}</p>
             `;
@@ -221,6 +222,9 @@
             const warningList = document.getElementById('warning-list');
             warningList.innerHTML = '';
             if (data.heuristic_warnings && data.heuristic_warnings.length > 0) {
+                const header = document.createElement('p');
+                header.innerHTML = '<strong>Security Warnings:</strong>';
+                warningList.appendChild(header);
                 data.heuristic_warnings.forEach(w => {
                     const li = document.createElement('li');
                     li.textContent = w;
