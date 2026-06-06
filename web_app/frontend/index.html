@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ QR Phishing Detector</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --safe: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        #result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+
+        .result-safe {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+
+        .result-phishing {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .badge-safe { background: var(--safe); color: white; }
+        .badge-phishing { background: var(--danger); color: white; }
+
+        .details {
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+
+        .details p { margin: 0.25rem 0; }
+
+        .warning-list {
+            margin-top: 1rem;
+            padding-left: 1.25rem;
+            color: var(--danger);
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ QR Phishing Detector</h1>
+        
+        <div id="reader"></div>
+        
+        <div class="input-group">
+            <label for="url-input">Or enter URL manually:</label>
+            <input type="text" id="url-input" placeholder="https://example.com">
+        </div>
+        
+        <button id="analyze-btn">Analyze URL</button>
+        
+        <div class="loader" id="loader">Analyzing...</div>
+        
+        <div id="result">
+            <div id="status-container"></div>
+            <div id="result-text"></div>
+            <div class="details" id="result-details"></div>
+            <ul class="warning-list" id="warning-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('url-input');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const resultDiv = document.getElementById('result');
+        const loader = document.getElementById('loader');
+
+        function onScanSuccess(decodedText, decodedResult) {
+            urlInput.value = decodedText;
+            analyzeURL(decodedText);
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+
+        analyzeBtn.addEventListener('click', () => {
+            analyzeURL(urlInput.value);
+        });
+
+        async function analyzeURL(url) {
+            if (!url) return;
+            
+            loader.style.display = 'block';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('http://localhost:8000/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Could not connect to the analysis backend. Make sure it is running.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function displayResult(data) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = data.prediction === 'Safe' ? 'result-safe' : 'result-phishing';
+            
+            const statusContainer = document.getElementById('status-container');
+            statusContainer.innerHTML = `<span class="status-badge ${data.prediction === 'Safe' ? 'badge-safe' : 'badge-phishing'}">${data.prediction}</span>`;
+            
+            document.getElementById('result-text').innerHTML = `<strong>URL:</strong> ${data.url}`;
+            
+            const details = document.getElementById('result-details');
+            details.innerHTML = `
+                <p><strong>ML Probability:</strong> ${(data.probability * 100).toFixed(2)}%</p>
+                <p><strong>ML Verdict:</strong> ${data.ml_result}</p>
+            `;
+
+            const warningList = document.getElementById('warning-list');
+            warningList.innerHTML = '';
+            if (data.heuristic_warnings && data.heuristic_warnings.length > 0) {
+                data.heuristic_warnings.forEach(w => {
+                    const li = document.createElement('li');
+                    li.textContent = w;
+                    warningList.appendChild(li);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
