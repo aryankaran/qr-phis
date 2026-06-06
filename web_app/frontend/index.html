@@ -136,6 +136,27 @@
             text-align: center;
             margin: 1rem 0;
         }
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 1rem;
+            display: block;
+            text-align: center;
+            width: 100%;
+        }
+
+        #settings-panel {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
@@ -150,10 +171,6 @@
         </div>
         
         <button id="analyze-btn">Analyze URL</button>
-
-        <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b; text-align: center;">
-            API URL: <input type="text" id="api-url" value="http://localhost:8000" style="width: auto; padding: 2px; font-size: 0.7rem; border: none; background: transparent; color: #4f46e5; cursor: pointer;" title="Click to edit if using Codespaces">
-        </div>
         
         <div class="loader" id="loader">Analyzing...</div>
         
@@ -163,6 +180,15 @@
             <div class="details" id="result-details"></div>
             <ul class="warning-list" id="warning-list"></ul>
         </div>
+
+        <button class="settings-btn" onclick="toggleSettings()">⚙️ Backend Settings</button>
+        <div id="settings-panel">
+            <label for="api-url">API Backend URL:</label>
+            <input type="text" id="api-url" placeholder="http://localhost:8000" style="margin-top: 0.5rem;">
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: #64748b;">
+                Tip: In Codespaces, use the forwarded URL for port 8000.
+            </p>
+        </div>
     </div>
 
     <script>
@@ -170,6 +196,27 @@
         const analyzeBtn = document.getElementById('analyze-btn');
         const resultDiv = document.getElementById('result');
         const loader = document.getElementById('loader');
+        const apiUrlInput = document.getElementById('api-url');
+
+        // Auto-detect Codespace Backend URL
+        function initBackendUrl() {
+            const currentUrl = window.location.href;
+            if (currentUrl.includes('github.dev') || currentUrl.includes('app.github.dev')) {
+                // If we're in a codespace, try to guess the 8000 port URL
+                // e.g., https://name-8080.app.github.dev -> https://name-8000.app.github.dev
+                const backendUrl = currentUrl.replace(/-\d+\.app\.github\.dev/, '-8000.app.github.dev').replace(/\/$/, '');
+                apiUrlInput.value = backendUrl;
+            } else {
+                apiUrlInput.value = 'http://localhost:8000';
+            }
+        }
+
+        initBackendUrl();
+
+        function toggleSettings() {
+            const panel = document.getElementById('settings-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
 
         function onScanSuccess(decodedText, decodedResult) {
             urlInput.value = decodedText;
@@ -190,10 +237,10 @@
             loader.style.display = 'block';
             resultDiv.style.display = 'none';
             
-            const apiUrl = document.getElementById('api-url').value.trim();
+            const apiBase = apiUrlInput.value.replace(/\/$/, '');
             
             try {
-                const response = await fetch(`${apiUrl}/analyze`, {
+                const response = await fetch(`${apiBase}/analyze`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: url })
@@ -203,7 +250,7 @@
                 displayResult(data);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Could not connect to the analysis backend. Make sure it is running.');
+                alert(`Could not connect to the backend at ${apiBase}.\n\n1. Make sure the backend is running.\n2. In Codespaces, go to the "Ports" tab and make port 8000 "Public".`);
             } finally {
                 loader.style.display = 'none';
             }
