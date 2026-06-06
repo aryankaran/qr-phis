@@ -7,6 +7,12 @@ from urllib.parse import urlparse
 import ipaddress
 import os
 
+import os
+
+# Suppress TensorFlow GPU warnings for CPU-only environments
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 app = FastAPI(title="QR Phishing Detector API")
 
 # Add CORS middleware
@@ -17,6 +23,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class URLRequest(BaseModel):
+    url: str
 
 # Path to the TFLite model
 MODEL_PATH = "models/model.tflite"
