@@ -1,32 +1,17 @@
 import os
 
-# Suppress TensorFlow GPU warnings for CPU-only environments
-# MUST be set before importing tensorflow
+# Suppress TensorFlow GPU warnings - MUST BE BEFORE TF IMPORT
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-import numpy as np
-import tensorflow as tf
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import numpy as np
+import tensorflow as tf
 from urllib.parse import urlparse
 import ipaddress
-import tldextract
-
-app = FastAPI(title="QR Phishing Detector API")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-class URLRequest(BaseModel):
-    url: str
+from contextlib import asynccontextmanager
 
 # Path to the TFLite model
 MODEL_PATH = "models/model.tflite"
@@ -43,6 +28,28 @@ def load_model():
             print(f"Model loaded from {MODEL_PATH}")
         except Exception as e:
             print(f"Error loading model: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    load_model()
+    yield
+    # Shutdown
+    if interpreter is not None:
+        print("Cleaning up model...")
+
+app = FastAPI(title="QR Phishing Detector API", lifespan=lifespan)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False, # Must be False when origins="*"
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+import tldextract
 
 def feature_extraction(url):
     """
@@ -145,9 +152,8 @@ def heuristic_analysis(url):
 
     return warnings, risk_score
 
-@app.on_event("startup")
-async def startup_event():
-    load_model()
+class URLRequest(BaseModel):
+    url: str
 
 @app.get("/")
 async def root():
