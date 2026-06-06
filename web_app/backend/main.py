@@ -95,39 +95,47 @@ def feature_extraction(url):
 
 def heuristic_analysis(url):
     """
-    Additional heuristic rules to optimize detection beyond the ML model.
+    Enhanced heuristic rules to optimize detection.
+    Returns a dictionary with warnings and a risk score.
     """
     warnings = []
+    risk_score = 0
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
+    path = parsed.path.lower()
     
-    # Check for suspicious keywords in domain or path
-    suspicious_keywords = ['login', 'verify', 'account', 'secure', 'banking', 'update', 'signin']
-    for kw in suspicious_keywords:
+    # 1. Suspicious keywords (High Risk)
+    high_risk_keywords = ['login', 'verify', 'account', 'secure', 'banking', 'update', 'signin', 'wp-admin', 'cmd', 'auth']
+    for kw in high_risk_keywords:
         if kw in url.lower():
-            warnings.append(f"Contains suspicious keyword: '{kw}'")
+            warnings.append(f"High risk keyword detected: '{kw}'")
+            risk_score += 2
             
-    # Check for long subdomains
+    # 2. Domain complexity (Medium Risk)
     if domain.count('.') > 3:
-        warnings.append("High number of subdomains detected")
+        warnings.append("Suspiciously deep subdomain structure")
+        risk_score += 1
         
-    # Check for digits in domain
+    # 3. Digits in domain
     digits = sum(c.isdigit() for c in domain)
-    if digits > 5:
-        warnings.append("High number of digits in domain")
+    if len(domain) > 0 and (digits / len(domain)) > 0.3:
+        warnings.append("High ratio of digits in domain")
+        risk_score += 1
 
-    return warnings
+    # 4. Sensitive TLDs (Low/Medium Risk depending on context)
+    suspicious_tlds = ['.xyz', '.tk', '.ml', '.ga', '.cf', '.gq', '.pw', '.ws', '.icu', '.top']
+    for tld in suspicious_tlds:
+        if domain.endswith(tld):
+            warnings.append(f"Domain uses a suspicious TLD: '{tld}'")
+            risk_score += 1
+            break
 
-class URLRequest(BaseModel):
-    url: str
+    # 5. HTTPS check for sensitive URLs
+    if parsed.scheme != 'https' and any(kw in url.lower() for kw in ['login', 'bank', 'secure']):
+        warnings.append("Sensitive URL over non-secure (HTTP) connection")
+        risk_score += 2
 
-@app.on_event("startup")
-async def startup_event():
-    load_model()
-
-@app.get("/")
-async def root():
-    return {"message": "QR Phishing Detector API is running"}
+    return warnings, risk_score
 
 @app.post("/analyze")
 async def analyze_url(request: URLRequest):
@@ -146,7 +154,6 @@ async def analyze_url(request: URLRequest):
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    # Prepare input data [1, 9]
     input_data = np.array([features], dtype=np.float32)
     interpreter.set_tensor(input_details[0]['index'], input_data)
     interpreter.invoke()
@@ -155,15 +162,17 @@ async def analyze_url(request: URLRequest):
     probability = float(output_data[0][0])
     is_phishing_ml = probability >= 0.5
     
-    # Perform Heuristic Analysis
-    warnings = heuristic_analysis(url)
+    # Perform Enhanced Heuristic Analysis
+    warnings, risk_score = heuristic_analysis(url)
     
-    # Combined result
-    result = "Phishing" if (is_phishing_ml or len(warnings) > 2) else "Safe"
+    # Combined result logic:
+    # If ML says phishing OR heuristics find significant risk
+    is_phishing = is_phishing_ml or risk_score >= 3
     
     return {
         "url": url,
-        "prediction": result,
+        "prediction": "Phishing" if is_phishing else "Safe",
+        "risk_score": risk_score,
         "probability": probability,
         "ml_result": "Phishing" if is_phishing_ml else "Safe",
         "heuristic_warnings": warnings,
