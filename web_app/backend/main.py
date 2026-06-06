@@ -56,6 +56,10 @@ def feature_extraction(url):
     Extracts the 9 features used by the original model.
     """
     try:
+        # Normalize URL: Ensure it has a scheme for proper parsing
+        if not url.startswith(('http://', 'https://')):
+            url = 'http://' + url
+            
         ext = tldextract.extract(url)
         domain = f"{ext.domain}.{ext.suffix}"
         parsed = urlparse(url)
@@ -64,6 +68,8 @@ def feature_extraction(url):
 
         # 1. domain_length
         domain_length = len(domain)
+        
+        # ... (rest of the features same as before)
 
         # 2. having ip address
         try:
@@ -111,12 +117,17 @@ def feature_extraction(url):
 def heuristic_analysis(url):
     """
     Enhanced heuristic rules to optimize detection.
-    Returns a dictionary with warnings and a risk score.
     """
     warnings = []
     risk_score = 0
+    
+    # Normalize
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+        
     parsed = urlparse(url)
-    domain = parsed.netloc.lower()
+    ext = tldextract.extract(url)
+    domain = f"{ext.domain}.{ext.suffix}"
     path = parsed.path.lower()
     
     # 1. Suspicious keywords (High Risk)
@@ -164,6 +175,10 @@ async def analyze_url(request: URLRequest):
     url = request.url
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
+
+    # Normalize URL early
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
 
     # Extract features for ML model
     features = feature_extraction(url)

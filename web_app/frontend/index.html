@@ -252,6 +252,7 @@
                 }
                 
                 const data = await response.json();
+                console.log('Backend Response:', data);
                 displayResult(data);
             } catch (error) {
                 console.error('Full Error:', error);
@@ -269,19 +270,26 @@
         }
 
         function displayResult(data) {
+            if (!data) return;
+            
             resultDiv.style.display = 'block';
-            resultDiv.className = data.prediction === 'Safe' ? 'result-safe' : 'result-phishing';
+            const prediction = data.prediction || 'Unknown';
+            resultDiv.className = prediction === 'Safe' ? 'result-safe' : 'result-phishing';
             
             const statusContainer = document.getElementById('status-container');
-            statusContainer.innerHTML = `<span class="status-badge ${data.prediction === 'Safe' ? 'badge-safe' : 'badge-phishing'}">${data.prediction}</span>`;
+            statusContainer.innerHTML = `<span class="status-badge ${prediction === 'Safe' ? 'badge-safe' : 'badge-phishing'}">${prediction}</span>`;
             
-            document.getElementById('result-text').innerHTML = `<strong>URL:</strong> ${data.url}`;
+            document.getElementById('result-text').innerHTML = `<strong>URL:</strong> ${data.url || 'N/A'}`;
             
             const details = document.getElementById('result-details');
+            const riskScore = data.risk_score !== undefined ? data.risk_score : '?';
+            const prob = data.probability !== undefined ? (data.probability * 100).toFixed(2) : '0.00';
+            const mlVerdict = data.ml_result || 'Unknown';
+
             details.innerHTML = `
-                <p><strong>Risk Score:</strong> ${data.risk_score} / 5</p>
-                <p><strong>ML Probability:</strong> ${(data.probability * 100).toFixed(2)}%</p>
-                <p><strong>ML Verdict:</strong> ${data.ml_result}</p>
+                <p><strong>Risk Score:</strong> ${riskScore} / 5</p>
+                <p><strong>ML Probability:</strong> ${prob}%</p>
+                <p><strong>ML Verdict:</strong> ${mlVerdict}</p>
             `;
 
             const warningList = document.getElementById('warning-list');
