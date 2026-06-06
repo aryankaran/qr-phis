@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+env/
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+dist/
+build/
+*.tflite
+!web_app/backend/models/model.tflite
